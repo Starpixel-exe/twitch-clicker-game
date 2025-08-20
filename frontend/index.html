@@ -44,7 +44,8 @@
       font-size: 1.2rem;
       font-weight: bold;
       color: #fff;
-      background-color: #ff7f50;
+      /* Use a vivid red for the feed button to catch the user's eye */
+      background-color: #e74c3c;
       border: none;
       border-radius: 8px;
       cursor: pointer;
@@ -141,6 +142,10 @@
   <div class="container">
     <h1>Feed Me!</h1>
     <div id="character-container">
+      <!--
+        We start with the idle frame (frame2) visible and the fed frame (frame1) hidden.
+        The JavaScript will briefly show frame1 on click and then revert to frame2.
+      -->
       <img id="frame1" src="../images/frame1.png" alt="character frame 1" style="opacity: 0;">
       <img id="frame2" src="../images/frame2.png" alt="character frame 2" style="opacity: 1;">
     </div>
@@ -153,9 +158,20 @@
 
   <script>
     // Replace with your deployed backend API base URL (no trailing slash).
-    const API_BASE_URL = 'https://feed-me-backend-eq0n.onrender.com';
+    const API_BASE_URL = 'REPLACE_WITH_YOUR_BACKEND_URL';
 
     let currentParticipantId = null;
+
+    // Track the number of clicks in the current session to apply multipliers
+    let clickCount = 0;
+    // Keep track of the user's current session score (resets after idle)
+    let currentSessionScore = 0;
+    // Track the highest score achieved by the user; this value is reflected on the leaderboard
+    let highestScore = 0;
+    // Remember how many points have already been posted to the leaderboard so we can send only the difference
+    let postedScore = 0;
+    // Timer reference used to detect inactivity (for resetting current session)
+    let idleTimer = null;
 
     async function fetchLeaderboard() {
       const url = `${API_BASE_URL}/leaderboard`;
@@ -208,6 +224,39 @@
       return await response.json();
     }
 
+    /**
+     * Increment a participant's score by a specified amount (uses the API's inc parameter).
+     * @param {string} id Participant identifier
+     * @param {number} amount Number of points to add (defaults to 1)
+     */
+    async function incrementScoreBy(id, amount = 1) {
+      const response = await fetch(`${API_BASE_URL}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, inc: amount }),
+      });
+      if (!response.ok) {
+        console.error('Failed to increment score');
+      }
+      return await response.json();
+    }
+
+    /**
+     * Reset a participant's score to zero via the API.
+     * @param {string} id Participant identifier
+     */
+    async function resetScore(id) {
+      const response = await fetch(`${API_BASE_URL}/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!response.ok) {
+        console.error('Failed to reset score');
+      }
+      return await response.json();
+    }
+
     async function updateLeaderboardDisplay() {
       const data = await fetchLeaderboard();
       renderLeaderboard(data);
@@ -236,7 +285,7 @@
     }
 
     async function initGame(username) {
-      // Get current participants
+      // Get current participants and set currentParticipantId
       const currentData = await fetchLeaderboard();
       const existing = currentData.find(item => item.name.toLowerCase() === username.toLowerCase());
       if (existing) {
@@ -246,32 +295,56 @@
         currentParticipantId = participant.id;
       }
       await updateLeaderboardDisplay();
+      // Elements for frames and container
       const frame1 = document.getElementById('frame1');
       const frame2 = document.getElementById('frame2');
       const container = document.getElementById('character-container');
-      let currentFrame = 2;
-      function toggleFrames() {
-        if (currentFrame === 1) {
-          frame1.style.opacity = '0';
-          frame2.style.opacity = '1';
-          currentFrame = 2;
-        } else {
-          frame1.style.opacity = '1';
-          frame2.style.opacity = '0';
-          currentFrame = 1;
-        }
-      }
       const feedBtn = document.getElementById('feedBtn');
+      // Ensure frame2 is visible and frame1 hidden at start
+      frame1.style.opacity = '0';
+      frame2.style.opacity = '1';
       feedBtn.addEventListener('click', async () => {
+        // Increase click count for multiplier logic
+        clickCount += 1;
+        // Calculate multiplier: every 50 clicks increases multiplier by 1
+        const currentMultiplier = Math.floor(clickCount / 50) + 1;
+        // Accumulate session score using multiplier
+        currentSessionScore += currentMultiplier;
+        // If this session's total exceeds the highest score, update the highest and send only the difference
+        if (currentSessionScore > highestScore) {
+          highestScore = currentSessionScore;
+          const diff = highestScore - postedScore;
+          if (diff > 0 && currentParticipantId) {
+            await incrementScoreBy(currentParticipantId, diff);
+            postedScore += diff;
+            // Update leaderboard after posting new high
+            await updateLeaderboardDisplay();
+          }
+        }
+        // Reset idle timer: clear any existing timer and start a new 5-second countdown
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          // When idle for 5 seconds, reset local counters but do not change the leaderboard
+          clickCount = 0;
+          currentSessionScore = 0;
+        }, 5000);
+        // Apply bounce animations
         feedBtn.classList.add('bounce');
         container.classList.add('bounce');
-        toggleFrames();
+        // Show the fed frame (frame1) and hide idle frame (frame2)
+        frame1.style.opacity = '1';
+        frame2.style.opacity = '0';
+        // After the animation duration, revert back to idle frame
         setTimeout(() => {
+          frame1.style.opacity = '0';
+          frame2.style.opacity = '1';
           feedBtn.classList.remove('bounce');
           container.classList.remove('bounce');
         }, 600);
+        // Update the scoreboard
         if (currentParticipantId) {
-          await incrementScore(currentParticipantId);
+          // Apply the multiplier to score using the incrementScoreBy function
+          await incrementScoreBy(currentParticipantId, currentMultiplier);
           await updateLeaderboardDisplay();
         }
       });

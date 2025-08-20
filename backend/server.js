@@ -59,14 +59,30 @@ app.post('/player', (req, res) => {
 });
 
 // POST /score
-// Increments a participant's score
+// Increments a participant's score by the specified amount (default 1).
+// Body: { id: string, inc?: number }
 app.post('/score', (req, res) => {
+  const { id, inc } = req.body;
+  const participant = participants.find(p => p.id === id);
+  if (!participant) {
+    return res.status(404).json({ error: 'Participant not found' });
+  }
+  // Ensure inc is a positive integer; default to 1
+  const increment = Number.isInteger(inc) && inc > 0 ? inc : 1;
+  participant.score += increment;
+  res.json(participant);
+});
+
+// POST /reset
+// Resets a participant's score to zero.
+// Body: { id: string }
+app.post('/reset', (req, res) => {
   const { id } = req.body;
   const participant = participants.find(p => p.id === id);
   if (!participant) {
     return res.status(404).json({ error: 'Participant not found' });
   }
-  participant.score += 1;
+  participant.score = 0;
   res.json(participant);
 });
 
