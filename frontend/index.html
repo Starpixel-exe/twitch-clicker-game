@@ -1,362 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Feed Me! – Shared Leaderboard</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Feed Me! — Shared Leaderboard</title>
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background-color: #f9f9fc;
-      color: #333;
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --text: #222;
+      --muted: #6b7280;
+      --accent: #e74c3c; /* red button */
+      --shadow: 0 10px 24px rgba(0,0,0,0.08);
+      --radius: 16px;
     }
-    .container {
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 20px;
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 16px;
       text-align: center;
     }
-    h1 {
-      font-size: 1.6rem;
-      margin-bottom: 10px;
-    }
+    h1 { margin: 0 0 18px; font-weight: 800; letter-spacing: .2px; }
     #character-container {
       position: relative;
-      width: 250px;
-      height: 250px;
-      margin: 0 auto;
+      width: 340px; height: 340px;
+      margin: 8px auto 18px;
     }
     #character-container img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
       object-fit: contain;
-      transition: opacity 0.4s ease;
+      transition: opacity .18s ease-in-out;
     }
+    /* Button */
     #feedBtn {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #fff;
-      /* Use a vivid red for the feed button to catch the user's eye */
-      background-color: #e74c3c;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform 0.1s ease;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 22px; border-radius: 12px; border: none;
+      background: var(--accent); color: #fff; font-weight: 800;
+      letter-spacing: .2px; cursor: pointer; box-shadow: var(--shadow);
+      user-select: none; transform: translateZ(0);
     }
-    #feedBtn:active {
-      transform: scale(0.95);
-    }
-    #leaderboard {
-      margin-top: 20px;
-      background-color: #fff;
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    #leaderboard h2 {
-      margin-top: 0;
-      font-size: 1.2rem;
-      margin-bottom: 5px;
-    }
-    #leaderboard ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    #leaderboard li {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 0;
-      border-bottom: 1px solid #eee;
-      font-size: 0.95rem;
-    }
-    #leaderboard li:last-child {
-      border-bottom: none;
-    }
+    #feedBtn:active { transform: scale(.97); }
+    .bone { font-size: 18px; }
+    /* Bounce */
+    .bounce { animation: bounce .6s ease; }
     @keyframes bounce {
-      0% { transform: translateY(0); }
-      30% { transform: translateY(-18px); }
-      50% { transform: translateY(0); }
-      70% { transform: translateY(-8px); }
-      100% { transform: translateY(0); }
+      0%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-14px); }
+      60% { transform: translateY(-6px); }
     }
-    .bounce {
-      animation: bounce 0.6s ease;
+    /* Scores row */
+    #scoresRow {
+      display: flex; gap: 12px; justify-content: center; margin-top: 12px;
     }
-    #namePrompt {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
+    .scoreCard {
+      background: var(--card); box-shadow: var(--shadow);
+      border-radius: 14px; padding: 10px 14px; min-width: 120px;
     }
-    #namePromptBox {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      text-align: center;
+    .scoreCard .label {
+      font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 2px;
     }
-    #namePromptBox input {
-      width: 200px;
-      padding: 8px;
-      margin-top: 10px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+    .scoreCard .value { font-size: 22px; font-weight: 800; }
+    /* Leaderboard card */
+    .card {
+      background: var(--card); box-shadow: var(--shadow);
+      border-radius: var(--radius); padding: 14px; margin: 22px auto 0; text-align: left;
     }
-    #namePromptBox button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      background-color: #4CAF50;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
+    .card h2 { margin: 0 0 8px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; }
+    th { text-align: left; font-weight: 700; color: var(--muted); }
+    tr + tr td { border-top: 1px solid #eee; }
+    .right { text-align: right; }
   </style>
 </head>
 <body>
-  <!-- Name entry overlay -->
-  <div id="namePrompt" style="display:none;">
-    <div id="namePromptBox">
-      <h3>Welcome!</h3>
-      <p>Please enter your display name to start feeding:</p>
-      <input id="userNameInput" type="text" maxlength="20" placeholder="Your name">
-      <br>
-      <button id="startBtn">Start</button>
-    </div>
-  </div>
-  <div class="container">
+  <div class="wrap">
     <h1>Feed Me!</h1>
+
     <div id="character-container">
-      <!--
-        We start with the idle frame (frame2) visible and the fed frame (frame1) hidden.
-        The JavaScript will briefly show frame1 on click and then revert to frame2.
-      -->
-      <img id="frame1" src="../images/frame1.png" alt="character frame 1" style="opacity: 0;">
-      <img id="frame2" src="../images/frame2.png" alt="character frame 2" style="opacity: 1;">
+      <!-- Start with idle frame (frame2) visible -->
+      <img id="frame1" src="./images/frame1.png" alt="character frame 1" style="opacity:0;">
+      <img id="frame2" src="./images/frame2.png" alt="character frame 2" style="opacity:1;">
     </div>
-    <button id="feedBtn">🍖 Feed Me!</button>
-    <div id="leaderboard">
+
+    <button id="feedBtn"><span class="bone">🍖</span> Feed Me!</button>
+
+    <!-- Current vs Best scores -->
+    <div id="scoresRow">
+      <div class="scoreCard">
+        <div class="label">Current</div>
+        <div class="value" id="currentScoreVal">0</div>
+      </div>
+      <div class="scoreCard">
+        <div class="label">Best</div>
+        <div class="value" id="bestScoreVal">0</div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Leaderboard</h2>
-      <ul id="boardList"></ul>
+      <table>
+        <thead><tr><th>Player</th><th class="right">Score</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
     </div>
   </div>
 
   <script>
-    // Replace with your deployed backend API base URL (no trailing slash).
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // 1) Set this to YOUR backend URL (no trailing slash)
     const API_BASE_URL = 'https://feed-me-backend-eq0n.onrender.com';
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+    // State
     let currentParticipantId = null;
+    let clickCount = 0;               // for multiplier (every 50)
+    let currentSessionScore = 0;      // resets after idle
+    let highestScore = 0;             // personal best (persistent while tab open)
+    let postedScore = 0;              // what we've already posted to server
+    let idleTimerId = null;
+    const IDLE_MS = 5000;
 
-    // Track the number of clicks in the current session to apply multipliers
-    let clickCount = 0;
-    // Keep track of the user's current session score (resets after idle)
-    let currentSessionScore = 0;
-    // Track the highest score achieved by the user; this value is reflected on the leaderboard
-    let highestScore = 0;
-    // Remember how many points have already been posted to the leaderboard so we can send only the difference
-    let postedScore = 0;
-    // Timer reference used to detect inactivity (for resetting current session)
-    let idleTimer = null;
+    // DOM refs
+    const btn = document.getElementById('feedBtn');
+    const container = document.getElementById('character-container');
+    const frame1 = document.getElementById('frame1'); // "fed" flash
+    const frame2 = document.getElementById('frame2'); // idle frame
+    const tbody = document.getElementById('tbody');
 
+    // API helpers
     async function fetchLeaderboard() {
-      const url = `${API_BASE_URL}/leaderboard`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error('Failed to fetch leaderboard');
-        return [];
-      }
-      return await response.json();
+      const r = await fetch(`${API_BASE_URL}/leaderboard`);
+      if (!r.ok) throw new Error('Failed to fetch leaderboard');
+      return r.json(); // array of {id,name,score}
     }
-
-    function renderLeaderboard(data) {
-      data.sort((a, b) => b.score - a.score);
-      const boardList = document.getElementById('boardList');
-      boardList.innerHTML = '';
-      data.slice(0, 10).forEach(entry => {
-        const li = document.createElement('li');
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = entry.name;
-        const scoreSpan = document.createElement('span');
-        scoreSpan.textContent = entry.score;
-        li.appendChild(nameSpan);
-        li.appendChild(scoreSpan);
-        boardList.appendChild(li);
-      });
-    }
-
     async function addParticipant(name) {
-      const response = await fetch(`${API_BASE_URL}/player`, {
+      const r = await fetch(`${API_BASE_URL}/player`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name })
       });
-      if (!response.ok) {
-        console.error('Failed to add participant');
-        return null;
-      }
-      return await response.json();
+      if (!r.ok) throw new Error('Failed to add participant');
+      return r.json();
     }
-
-    async function incrementScore(id) {
-      const response = await fetch(`${API_BASE_URL}/score`, {
+    async function incrementScoreBy(id, inc) {
+      const r = await fetch(`${API_BASE_URL}/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, inc })
       });
-      if (!response.ok) {
-        console.error('Failed to increment score');
-      }
-      return await response.json();
+      if (!r.ok) throw new Error('Failed to increment score');
+      return r.json();
     }
 
-    /**
-     * Increment a participant's score by a specified amount (uses the API's inc parameter).
-     * @param {string} id Participant identifier
-     * @param {number} amount Number of points to add (defaults to 1)
-     */
-    async function incrementScoreBy(id, amount = 1) {
-      const response = await fetch(`${API_BASE_URL}/score`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, inc: amount }),
-      });
-      if (!response.ok) {
-        console.error('Failed to increment score');
-      }
-      return await response.json();
+    // UI helpers
+    function updateScoreUI() {
+      document.getElementById('currentScoreVal').textContent = currentSessionScore;
+      document.getElementById('bestScoreVal').textContent = highestScore;
     }
-
-    /**
-     * Reset a participant's score to zero via the API.
-     * @param {string} id Participant identifier
-     */
-    async function resetScore(id) {
-      const response = await fetch(`${API_BASE_URL}/reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (!response.ok) {
-        console.error('Failed to reset score');
-      }
-      return await response.json();
-    }
-
-    async function updateLeaderboardDisplay() {
+    async function renderLeaderboard() {
       const data = await fetchLeaderboard();
-      renderLeaderboard(data);
-    }
-
-    function getUserName() {
-      const username = localStorage.getItem('feed_me_username');
-      if (!username) {
-        document.getElementById('namePrompt').style.display = 'flex';
-      } else {
-        return username;
-      }
-      return null;
-    }
-
-    function initNamePrompt() {
-      const startBtn = document.getElementById('startBtn');
-      startBtn.addEventListener('click', async () => {
-        const input = document.getElementById('userNameInput');
-        const name = input.value.trim();
-        if (!name) return;
-        localStorage.setItem('feed_me_username', name);
-        document.getElementById('namePrompt').style.display = 'none';
-        await initGame(name);
+      tbody.innerHTML = '';
+      data.slice(0, 50).forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${idx + 1}. ${p.name}</td><td class="right">${p.score}</td>`;
+        tbody.appendChild(tr);
       });
     }
+    function armIdleTimer() {
+      if (idleTimerId) clearTimeout(idleTimerId);
+      idleTimerId = setTimeout(() => {
+        // reset ONLY current run/multiplier; Best & leaderboard remain
+        clickCount = 0;
+        currentSessionScore = 0;
+        updateScoreUI();
+        // ensure idle frame is visible
+        frame1.style.opacity = '0';
+        frame2.style.opacity = '1';
+      }, IDLE_MS);
+    }
 
+    // Init + click logic
     async function initGame(username) {
-      // Get current participants and set currentParticipantId
-      const currentData = await fetchLeaderboard();
-      const existing = currentData.find(item => item.name.toLowerCase() === username.toLowerCase());
+      // Find or create participant
+      const board = await fetchLeaderboard();
+      const existing = board.find(p => p.name.toLowerCase() === username.toLowerCase());
       if (existing) {
         currentParticipantId = existing.id;
+        postedScore = Number(existing.score) || 0;
+        highestScore = postedScore;
       } else {
-        const participant = await addParticipant(username);
-        currentParticipantId = participant.id;
+        const p = await addParticipant(username);
+        currentParticipantId = p.id;
+        postedScore = 0;
+        highestScore = 0;
       }
-      await updateLeaderboardDisplay();
-      // Elements for frames and container
-      const frame1 = document.getElementById('frame1');
-      const frame2 = document.getElementById('frame2');
-      const container = document.getElementById('character-container');
-      const feedBtn = document.getElementById('feedBtn');
-      // Ensure frame2 is visible and frame1 hidden at start
-      frame1.style.opacity = '0';
-      frame2.style.opacity = '1';
-      feedBtn.addEventListener('click', async () => {
-        // Increase click count for multiplier logic
-        clickCount += 1;
-        // Calculate multiplier: every 50 clicks increases multiplier by 1
-        const currentMultiplier = Math.floor(clickCount / 50) + 1;
-        // Accumulate session score using multiplier
-        currentSessionScore += currentMultiplier;
-        // If this session's total exceeds the highest score, update the highest and send only the difference
-        if (currentSessionScore > highestScore) {
-          highestScore = currentSessionScore;
-          const diff = highestScore - postedScore;
-          if (diff > 0 && currentParticipantId) {
-            await incrementScoreBy(currentParticipantId, diff);
-            postedScore += diff;
-            // Update leaderboard after posting new high
-            await updateLeaderboardDisplay();
-          }
-        }
-        // Reset idle timer: clear any existing timer and start a new 5-second countdown
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-          // When idle for 5 seconds, reset local counters but do not change the leaderboard
-          clickCount = 0;
-          currentSessionScore = 0;
-        }, 5000);
-        // Apply bounce animations
-        feedBtn.classList.add('bounce');
+      currentSessionScore = 0;
+      clickCount = 0;
+      updateScoreUI();
+      renderLeaderboard();
+
+      // Click animation + scoring
+      btn.addEventListener('click', async () => {
+        // 1) Visuals: bounce + flash frame1 then back to frame2
         container.classList.add('bounce');
-        // Show the fed frame (frame1) and hide idle frame (frame2)
+        btn.classList.add('bounce');
         frame1.style.opacity = '1';
         frame2.style.opacity = '0';
-        // After the animation duration, revert back to idle frame
         setTimeout(() => {
+          container.classList.remove('bounce');
+          btn.classList.remove('bounce');
           frame1.style.opacity = '0';
           frame2.style.opacity = '1';
-          feedBtn.classList.remove('bounce');
-          container.classList.remove('bounce');
-        }, 600);
-        // Update the scoreboard
-        if (currentParticipantId) {
-          // Apply the multiplier to score using the incrementScoreBy function
-          await incrementScoreBy(currentParticipantId, currentMultiplier);
-          await updateLeaderboardDisplay();
+        }, 600); // keep in sync with @keyframes bounce
+
+        // 2) Scoring with multiplier
+        clickCount += 1;
+        const multiplier = Math.floor(clickCount / 50) + 1;
+        currentSessionScore += multiplier;
+
+        // If we set a new best, post only the delta beyond the server score
+        if (currentSessionScore > highestScore) {
+          highestScore = currentSessionScore;
+          const delta = highestScore - postedScore;
+          if (delta > 0) {
+            try {
+              await incrementScoreBy(currentParticipantId, delta);
+              postedScore += delta;
+              renderLeaderboard();
+            } catch (err) {
+              console.error('Failed to post score delta:', err);
+            }
+          }
         }
+
+        updateScoreUI();
+        armIdleTimer();
       });
+
+      // Start idle timer on load
+      armIdleTimer();
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      initNamePrompt();
-      const username = getUserName();
-      if (username) {
-        await initGame(username);
+    // Prompt for (or recall) username
+    (async function bootstrap() {
+      let name = localStorage.getItem('feed_me_username') || '';
+      if (!name) {
+        name = (prompt('Enter a display name:') || '').trim();
+        if (!name) return; // user cancelled
+        localStorage.setItem('feed_me_username', name);
       }
-    });
+      try {
+        await initGame(name);
+      } catch (e) {
+        console.error(e);
+        alert('Failed to load the game. Check the API_BASE_URL and try again.');
+      }
+    })();
   </script>
 </body>
 </html>
