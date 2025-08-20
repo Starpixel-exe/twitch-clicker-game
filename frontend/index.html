@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feed Me! – Shared Leaderboard</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f9f9fc;
+      color: #333;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+    }
+    #character-container {
+      position: relative;
+      width: 250px;
+      height: 250px;
+      margin: 0 auto;
+    }
+    #character-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.4s ease;
+    }
+    #feedBtn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #fff;
+      background-color: #ff7f50;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    #feedBtn:active {
+      transform: scale(0.95);
+    }
+    #leaderboard {
+      margin-top: 20px;
+      background-color: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    #leaderboard h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    #leaderboard ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #leaderboard li {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 0.95rem;
+    }
+    #leaderboard li:last-child {
+      border-bottom: none;
+    }
+    @keyframes bounce {
+      0% { transform: translateY(0); }
+      30% { transform: translateY(-18px); }
+      50% { transform: translateY(0); }
+      70% { transform: translateY(-8px); }
+      100% { transform: translateY(0); }
+    }
+    .bounce {
+      animation: bounce 0.6s ease;
+    }
+    #namePrompt {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #namePromptBox {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    #namePromptBox input {
+      width: 200px;
+      padding: 8px;
+      margin-top: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    #namePromptBox button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Name entry overlay -->
+  <div id="namePrompt" style="display:none;">
+    <div id="namePromptBox">
+      <h3>Welcome!</h3>
+      <p>Please enter your display name to start feeding:</p>
+      <input id="userNameInput" type="text" maxlength="20" placeholder="Your name">
+      <br>
+      <button id="startBtn">Start</button>
+    </div>
+  </div>
+  <div class="container">
+    <h1>Feed Me!</h1>
+    <div id="character-container">
+      <img id="frame1" src="../images/frame1.png" alt="character frame 1" style="opacity: 0;">
+      <img id="frame2" src="../images/frame2.png" alt="character frame 2" style="opacity: 1;">
+    </div>
+    <button id="feedBtn">🍖 Feed Me!</button>
+    <div id="leaderboard">
+      <h2>Leaderboard</h2>
+      <ul id="boardList"></ul>
+    </div>
+  </div>
+
+  <script>
+    // Replace with your deployed backend API base URL (no trailing slash).
+    const API_BASE_URL = 'https://feed-me-backend-eq0n.onrender.com';
+
+    let currentParticipantId = null;
+
+    async function fetchLeaderboard() {
+      const url = `${API_BASE_URL}/leaderboard`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error('Failed to fetch leaderboard');
+        return [];
+      }
+      return await response.json();
+    }
+
+    function renderLeaderboard(data) {
+      data.sort((a, b) => b.score - a.score);
+      const boardList = document.getElementById('boardList');
+      boardList.innerHTML = '';
+      data.slice(0, 10).forEach(entry => {
+        const li = document.createElement('li');
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = entry.name;
+        const scoreSpan = document.createElement('span');
+        scoreSpan.textContent = entry.score;
+        li.appendChild(nameSpan);
+        li.appendChild(scoreSpan);
+        boardList.appendChild(li);
+      });
+    }
+
+    async function addParticipant(name) {
+      const response = await fetch(`${API_BASE_URL}/player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        console.error('Failed to add participant');
+        return null;
+      }
+      return await response.json();
+    }
+
+    async function incrementScore(id) {
+      const response = await fetch(`${API_BASE_URL}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!response.ok) {
+        console.error('Failed to increment score');
+      }
+      return await response.json();
+    }
+
+    async function updateLeaderboardDisplay() {
+      const data = await fetchLeaderboard();
+      renderLeaderboard(data);
+    }
+
+    function getUserName() {
+      const username = localStorage.getItem('feed_me_username');
+      if (!username) {
+        document.getElementById('namePrompt').style.display = 'flex';
+      } else {
+        return username;
+      }
+      return null;
+    }
+
+    function initNamePrompt() {
+      const startBtn = document.getElementById('startBtn');
+      startBtn.addEventListener('click', async () => {
+        const input = document.getElementById('userNameInput');
+        const name = input.value.trim();
+        if (!name) return;
+        localStorage.setItem('feed_me_username', name);
+        document.getElementById('namePrompt').style.display = 'none';
+        await initGame(name);
+      });
+    }
+
+    async function initGame(username) {
+      // Get current participants
+      const currentData = await fetchLeaderboard();
+      const existing = currentData.find(item => item.name.toLowerCase() === username.toLowerCase());
+      if (existing) {
+        currentParticipantId = existing.id;
+      } else {
+        const participant = await addParticipant(username);
+        currentParticipantId = participant.id;
+      }
+      await updateLeaderboardDisplay();
+      const frame1 = document.getElementById('frame1');
+      const frame2 = document.getElementById('frame2');
+      const container = document.getElementById('character-container');
+      let currentFrame = 2;
+      function toggleFrames() {
+        if (currentFrame === 1) {
+          frame1.style.opacity = '0';
+          frame2.style.opacity = '1';
+          currentFrame = 2;
+        } else {
+          frame1.style.opacity = '1';
+          frame2.style.opacity = '0';
+          currentFrame = 1;
+        }
+      }
+      const feedBtn = document.getElementById('feedBtn');
+      feedBtn.addEventListener('click', async () => {
+        feedBtn.classList.add('bounce');
+        container.classList.add('bounce');
+        toggleFrames();
+        setTimeout(() => {
+          feedBtn.classList.remove('bounce');
+          container.classList.remove('bounce');
+        }, 600);
+        if (currentParticipantId) {
+          await incrementScore(currentParticipantId);
+          await updateLeaderboardDisplay();
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      initNamePrompt();
+      const username = getUserName();
+      if (username) {
+        await initGame(username);
+      }
+    });
+  </script>
+</body>
+</html>
